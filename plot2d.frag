@@ -20,6 +20,81 @@ float function(in float x) {
     float y = 0.0;
     y = x;
     
+    //exponent
+    // y = pow(x,2.0);
+    // y = pow(x,5.0);
+    // y = pow(x,20.0);
+
+    // y = pow(x,0.);
+    // y = pow(x,.2);
+
+    //trigonometry
+    // y = sin(x);
+    // y = cos(x);
+    // y = tan(x)
+
+    // shrink
+    // y = sin(x*PI*5.);
+    // y = cos(x*PI*3.);
+    // y = tan(x*PI*7.);
+
+    // displaced
+    // y = sin(x) + .5;
+    // y = cos(x) + .5;
+    // y = tan(x) + .5;
+
+    // amplitude
+    // y = sin(x) * 1.2;
+    // y = cos(x) * 0.5;
+    // y = tan(x) * 0.2;
+
+    // bouncing
+    // y = abs(sin(x));
+    // y = abs(cos(x));
+    // y = abs(tan(x));
+
+    // bouncing + shrink
+    // y = abs(sin(x* PI * 2.));
+    // y = abs(cos(x* PI * 2.));
+    // y = abs(tan(x* PI * 2.));
+
+    // fract
+    // y = fract(sin(x));
+    // y = fract(cos(x));
+    // y = fract(tan(x));
+    
+    // fract + shrink
+    // y = fract(sin(x* PI * 2.));
+    // y = fract(cos(x* PI * 2.));
+    // y = fract(tan(x* PI * 2.));
+
+    // motion - time input
+    // y = sin(u_time+x);
+    // y = cos(u_time+x);
+    // y = tan(u_time+x);
+
+    // speed = time input
+    // y = sin(u_time*5. + x);
+    // y = cos(u_time*5. + x);
+    // y = tan(u_time*5. + x);
+
+    // shrink + motion
+    // y = sin(u_time + x*PI*5.);
+    // y = cos(u_time + x*PI*3.);
+    // y = tan(u_time + x*PI*7.);
+    
+    // frequency - time input
+    // y = sin(u_time*x);
+    // y = cos(u_time*x);
+    // y = tan(u_time*x);
+
+    // ceil + shrink
+    y = ceil(sin(x * PI * 2.));
+
+    // floor + shrink
+    // y = floor(sin(x * PI * 2.));
+
+
     //from tbos
     // y = mod(x,0.5); // return x modulo of 0.5
     // y = fract(x); // return only the fraction part of a number
