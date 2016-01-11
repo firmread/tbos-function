@@ -12,7 +12,7 @@ float lineJitter = 0.5;
 float lineWidth = 7.0;
 float gridWidth = 1.7;
 float scale = 0.0013;
-float zoom = 2.5;
+float zoom = 10.;
 vec2 offset = vec2(0.5);
 
 
@@ -34,7 +34,7 @@ float function(in float x) {
     // y = tan(x)
 
     // shrink
-    // y = sin(x*PI*5.);
+    y = sin(x*PI*5.);
     // y = cos(x*PI*3.);
     // y = tan(x*PI*7.);
 
@@ -89,7 +89,7 @@ float function(in float x) {
     // y = tan(u_time*x);
 
     // ceil + shrink
-    y = ceil(sin(x * PI * 2.));
+    // y = ceil(sin(x * PI * 2.));
 
     // floor + shrink
     // y = floor(sin(x * PI * 2.));
