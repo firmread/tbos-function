@@ -1,3 +1,9 @@
+
+// PARSING
+//---------------------------------------------------------------
+
+//  Graph plotter function take from 
+//  From http://blog.hvidtfeldts.net/index.php/2011/07/plotting-high-frequency-functions-using-a-gpu/
 var preFunction = "\n\
 #ifdef GL_ES\n\
 precision mediump float;\n\
@@ -16,18 +22,40 @@ float scale = 0.0053;\n\
 float zoom = 5.;\n\
 vec2 offset = vec2(0.5);\n\
 \n\
-\n\
-float function(in float x) {\n\
-    float y = 0.0;\n\
-    ";
-
-var postFunction = "\n\
-    \n\
-    return y;\n\
+float rand (in float _x) {\n\
+    return fract(sin(_x)*1e4);\n\
 }\n\
 \n\
-float rand(vec2 co){\n\
+float rand (in vec2 co) {\n\
     return fract(sin(dot(co.xy,vec2(12.9898,78.233)))*43758.5453);\n\
+}\n\
+\n\
+float noise (in float _x) {\n\
+    float i = floor(_x);\n\
+    float f = fract(_x);\n\
+    float u = f * f * (3.0 - 2.0 * f);\n\
+    return mix(rand(i), rand(i + 1.0), u);\n\
+}\n\
+\n\
+float noise (in vec2 _st) {\n\
+    vec2 i = floor(_st);\n\
+    vec2 f = fract(_st);\n\
+    // Four corners in 2D of a tile\n\
+    float a = rand(i);\n\
+    float b = rand(i + vec2(1.0, 0.0));\n\
+    float c = rand(i + vec2(0.0, 1.0));\n\
+    float d = rand(i + vec2(1.0, 1.0));\n\
+    vec2 u = f * f * (3.0 - 2.0 * f);\n\
+    return mix(a, b, u.x) + \n\
+            (c - a)* u.y * (1.0 - u.x) + \n\
+            (d - b) * u.x * u.y;\n\
+}\n\
+\n\
+float function(in float x) {\n\
+    float y = 0.0;\n";
+
+var postFunction = "\n\
+    return y;\n\
 }\n\
 \n\
 vec3 plot2D(in vec2 _st, in float _width ) {\n\
@@ -78,33 +106,118 @@ void main(){\n\
     gl_FragColor = vec4(color,1.0);\n\
 }";
 
+/*
+ *	Fetch for files
+ */
+function fetchHTTP(url, methood) {
+	var request = new XMLHttpRequest(), response;
 
-
-
-
-function loadCanvas() {
-    var canvas = document.getElementsByClassName("canvas");
-    for (var i = 0; i < canvas.length; i++){
-        if (canvas[i].id === "custom") {
-            canvas[i].id = randomString(16, '#aA');
-        }
-        billboards[canvas[i].id] = new GlslCanvas(canvas[i]);
-    }       
+	request.onreadystatechange = function () {
+		if (request.readyState === 4 && request.status === 200) {
+			response = request.responseText;
+		}
+	}
+	request.open(methood ? methood : 'GET', url, false);
+    request.overrideMimeType("text/plain");
+	request.send(null);
+	return response;
 }
 
-
-function renderCanvas() {
-    var IDs = Object.keys(billboards);
-    for(var i = 0; i < IDs.length; i++){
-        billboards[IDs[i]].setMouse(mouse);
-        billboards[IDs[i]].render();
-    }
-    window.requestAnimFrame(renderCanvas);
+function randomString(length, chars) {
+    var mask = '';
+    if (chars.indexOf('a') > -1) mask += 'abcdefghijklmnopqrstuvwxyz';
+    if (chars.indexOf('A') > -1) mask += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (chars.indexOf('#') > -1) mask += '0123456789';
+    if (chars.indexOf('!') > -1) mask += '~`!@#$%^&*()_+-={}[]:";\'<>?,./|\\';
+    var result = '';
+    for (var i = length; i > 0; --i) result += mask[Math.round(Math.random() * (mask.length - 1))];
+    return result;
 }
-
 
 var billboards = {}; 
-function parseSimpleFunction(){
+function loadMarkdown() {
+
+    // parse CODE & CANVAS boxes
+	var ccList = document.querySelectorAll(".codeAndCanvas");
+    var id = "", 
+        srcFile= "",
+        str = ""
+        imagesFiles = "",
+        inject = "";
+
+    var imgCounter = 0;
+	for(var i = 0; i < ccList.length; i++){
+		if (ccList[i].hasAttribute("data")){
+			id = randomString(16, '#aA');
+			srcFile = ccList[i].getAttribute("data");
+            
+            // load code
+            str = fetchHTTP(srcFile);
+            inject = '<div class="editor">\
+            <canvas id ='+id+' class="canvas" data-fragment-url="'+srcFile+'" ';
+
+            // load images
+            imagesFiles = ccList[i].getAttribute("data-imgs");
+            imgCounter = 0;
+            if ( imagesFiles ){
+                var imgUrls = imagesFiles.split('&');
+                for(var j in imgUrls){
+                    var ext = imgUrls[j].substr(imgUrls[j].lastIndexOf('.') + 1);
+                    if (ext == "png" || ext == "jpg" || ext == "PNG" || ext == "JPG" ){
+                        if(imgCounter === 0){
+                            inject += 'data-textures="'
+                        } else {
+                            inject += ",";
+                        }
+                        inject += imgUrls[j];
+                        imgCounter++;
+                    }
+                }
+                if (imgCounter !== 0){
+                    inject += '" ';
+                }
+            } 
+            inject += ' width="250px" height="250px"></canvas>\
+			</div>';
+
+            // inject the code
+            ccList[i].innerHTML = inject;
+
+            // wakeup the code editor
+			var demoEditor = ccList[i].getElementsByTagName("div");
+			if(demoEditor[0]){
+				var editor = CodeMirror(demoEditor[0],{
+					value: str,
+					viewportMargin: Infinity,
+					lineNumbers: true,
+					matchBrackets: true,
+					mode: "x-shader/x-fragment",
+					keyMap: "sublime",
+					autoCloseBrackets: true,
+					extraKeys: {"Ctrl-Space": "autocomplete"},
+					showCursorWhenSelecting: true,
+                    lineWrapping: true,
+                    indentUnit: 4
+				});
+
+				editor.id = id;
+
+                editor.on("cursorActivity", function(cm) {
+                    var canvasToChange = document.getElementById(cm.id);
+                    var height = cm.heightAtLine(cm.getCursor().line+1,'local')-canvasToChange.height;
+                    if (height<0){
+                        height = 0.0;   
+                    }
+                    canvasToChange.style.top = (height).toString()+"px";
+                });
+
+				editor.on("change", function(cm, change) {
+					billboards[cm.id].load(cm.getValue());
+                    billboards[cm.id].render(true);
+				});
+			}
+		}
+	}
 
     // parse Simple FUNCTIONS
     var fList = document.querySelectorAll(".simpleFunction");
@@ -115,7 +228,7 @@ function parseSimpleFunction(){
   
             // compose glslCanvas
             fList[i].innerHTML = '<div class="function">\
-            <canvas id ='+id+' class="canvas" data-fragment="'+preFunction+funct+postFunction+'" width="800px" height="240px" ></canvas>\
+            <canvas id ='+id+' class="canvas" data-fragment="'+preFunction+funct+postFunction+'" width="1000px" height="50px" ></canvas>\
             </div>';
 
             // wakeup the code editor
@@ -143,10 +256,142 @@ function parseSimpleFunction(){
         }
     }
 
+	// Load codes tags that have "src" attributes
+	var list = document.getElementsByTagName("code");
+	for(var i = 0; i < list.length; i++){
+		if (list[i].className == "language-glsl" || 
+			list[i].className == "language-bash" || 
+			list[i].className == "language-cpp" || 
+			list[i].className == "language-html" ||
+            list[i].className == "language-processing" ){
+			hljs.highlightBlock(list[i]);
+		}
+	}
 }
 
+function loadCanvas() {
+    var canvas = document.getElementsByClassName("canvas");
+    for (var i = 0; i < canvas.length; i++){
+        if (canvas[i].id === "custom") {
+            canvas[i].id = randomString(16, '#aA');
+        }
+        billboards[canvas[i].id] = new GlslCanvas(canvas[i]);
+    }       
+}
 
+function insertAfter(newElement,targetElement) {
+    var parent = targetElement.parentNode;
+    if (parent.lastChild == targetElement) {
+        parent.appendChild(newElement);
+    } else {
+        parent.insertBefore(newElement,targetElement.nextSibling);
+    }
+}
 
+function captionizeImages() {
+    if (!document.getElementsByTagName) 
+        return false;
+
+    if (!document.createElement) 
+        return false;
+    
+    var images = document.getElementsByTagName("img");
+    if (images.length < 1) 
+        return false; 
+
+    for (var i=0; i<images.length; i++) {
+        var title = images[i].getAttribute("alt");
+
+        if (title != ""){
+            var divCaption = document.createElement("div");
+            divCaption.className = "caption";
+            var divCaption_text = document.createTextNode(title);
+            divCaption.appendChild(divCaption_text);
+            var divContainer = document.createElement("div");
+            divContainer.className="imgcontainer";
+            images[i].parentNode.insertBefore(divContainer,images[i]);
+            divContainer.appendChild(images[i]);
+            insertAfter(divCaption,images[i]);
+        }
+    }
+}
+
+// NAVIGATION
+//-----------------------------------------------------------------------
+
+function FormatNumberLength(num, length) {
+    var r = "" + num;
+    while (r.length < length) {
+        r = "0" + r;
+    }
+    return r;
+}
+
+function checkUrl(url) {
+    var request = false;
+    if (window.XMLHttpRequest) {
+            request = new XMLHttpRequest;
+    } else if (window.ActiveXObject) {
+            request = new ActiveXObject("Microsoft.XMLHttp");
+    }
+
+    if (request) {
+            request.open("GET", url);
+            if (request.status == 200) { return true; }
+    }
+
+    return false;
+}
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+function previusPage() {
+	var path = window.location.pathname;
+
+	var n = parseInt( path.match( /[0-1].(?!.*[0-1])/ )[0] );
+    var url;
+	n -= 1;
+    if(n < 0){
+        url = "../";
+    } else {
+        url = "../" + FormatNumberLength(n,2) + "/";
+    }
+
+    var language = getParameterByName('lan');
+    if (language !== ""){
+        url += "?lan="+language;
+    }
+
+	window.location.href =  url;
+}
+
+function homePage() {
+	window.location.href = "../";
+}
+
+function nextPage() {
+	var path = window.location.pathname;
+
+	var n = parseInt( path.match( /[0-1].(?!.*[0-1])/ )[0] );
+	n += 1;
+	var url = "../" + FormatNumberLength(n,2) + "/";
+
+    var language = getParameterByName('lan');
+    if (language !== ""){
+        url += "?lan="+language;
+    }
+
+	window.location.href =  url;
+}
+
+function translate() {
+
+}
 
 /**
  * Provides requestAnimationFrame in a cross browser way.
@@ -174,12 +419,9 @@ window.cancelRequestAnimFrame = (function() {
             window.clearTimeout;
 })();
 
-
-
-
 window.onload = function(){
-	parseSimpleFunction;
-    loadCanvas();
+	loadMarkdown();
+    captionizeImages();
 
-    renderCanvas(); 
+    loadCanvas();
 };
